@@ -1,19 +1,9 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS
-from .config import Config
-
-db = SQLAlchemy()
+from app.routes import bp
+from app.blueprints.user import bp as user_bp
 
 def create_app():
     app = Flask(__name__)
-    app.config.from_object(Config)
-    
-    db.init_app(app)
-    CORS(app)
-    
-    with app.app_context():
-        from . import routes
-        db.create_all()
-    
+    app.register_blueprint(bp)
+    app.register_blueprint(user_bp)
     return app
