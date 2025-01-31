@@ -1,17 +1,11 @@
 import os
-from dotenv import load_dotenv
-import psycopg2
-
-# Load environment variables from .env file
-load_dotenv()
 
 class Config:
     DATABASE_URL = os.getenv("DATABASE_URL", "postgres://avnadmin:AVNS_PMmdhDlfRwyLY13PPN-@ticketizer-shijinabraham2003-68db.d.aivencloud.com:18037/defaultdb?sslmode=require")
+    SQLALCHEMY_DATABASE_URI = DATABASE_URL
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-def get_db_connection(db_name="ticketizer"):
-    # Parse the DATABASE_URL and replace the database name
-    conn_str = Config.DATABASE_URL
-    if db_name:
-        conn_str = conn_str.rsplit('/', 1)[0] + '/' + db_name + '?sslmode=require'
-    conn = psycopg2.connect(conn_str)
+def get_db_connection():
+    import psycopg2
+    conn = psycopg2.connect(Config.DATABASE_URL)
     return conn

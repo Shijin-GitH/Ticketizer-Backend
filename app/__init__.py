@@ -1,9 +1,19 @@
 from flask import Flask
-from app.routes import bp
-from app.blueprints.user import bp as user_bp
+from flask_sqlalchemy import SQLAlchemy
+from app.config import Config
+
+db = SQLAlchemy()
 
 def create_app():
     app = Flask(__name__)
-    app.register_blueprint(bp)
-    app.register_blueprint(user_bp)
+    app.config.from_object(Config)
+    db.init_app(app)
+    
+    with app.app_context():
+        # Import parts of our application
+        from . import routes  # Import routes
+
+        # Create tables for our models
+        db.create_all()
+
     return app
