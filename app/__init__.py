@@ -14,8 +14,10 @@ def create_app():
     with app.app_context():
         from app.routes import bp
         from app.blueprints.user import bp as user_bp
+        from app.blueprints.event import bp as event_bp
         app.register_blueprint(bp)
         app.register_blueprint(user_bp)
+        app.register_blueprint(event_bp)
         db.create_all()
 
     return app
