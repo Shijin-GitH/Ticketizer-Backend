@@ -6,3 +6,4 @@ python-dotenv
 Flask-migrate
 pyJWT
 bcrypt
+Flask-Cors
