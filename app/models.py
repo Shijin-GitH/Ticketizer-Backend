@@ -1,6 +1,23 @@
-from . import db
+from app import db
 
 class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    
+    __tablename__ = 'users'
+    User_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    Name = db.Column(db.String(255), nullable=False)
+    Email = db.Column(db.String(255), unique=True, nullable=False)
+    Phone = db.Column(db.String(20))
+    Address = db.Column(db.Text)
+    Password_Hash = db.Column(db.String(255), nullable=False)
+    Profile_Pic = db.Column(db.Text)
+
+    def __init__(self, name, email, phone, address, password_hash, profile_pic):
+        self.Name = name
+        self.Email = email
+        self.Phone = phone
+        self.Address = address
+        self.Password_Hash = password_hash
+        self.Profile_Pic = profile_pic
+
+    @property
+    def formatted_user_id(self):
+        return f'TZR{self.User_id}'

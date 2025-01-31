@@ -1,11 +1,12 @@
+# filepath: /d:/Tickertizer/Web/Backend/app/config.py
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class Config:
-    DATABASE_URL = os.getenv("DATABASE_URL", "postgres://avnadmin:AVNS_PMmdhDlfRwyLY13PPN-@ticketizer-shijinabraham2003-68db.d.aivencloud.com:18037/defaultdb?sslmode=require")
-    SQLALCHEMY_DATABASE_URI = DATABASE_URL
+    DEBUG = True
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-def get_db_connection():
-    import psycopg2
-    conn = psycopg2.connect(Config.DATABASE_URL)
-    return conn
+    SECRET_KEY = os.getenv("SECRET_KEY")
