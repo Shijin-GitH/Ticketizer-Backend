@@ -1,4 +1,5 @@
 from app import db
+import sqlalchemy as sa
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -6,17 +7,18 @@ class User(db.Model):
     Name = db.Column(db.String(255), nullable=False)
     Email = db.Column(db.String(255), unique=True, nullable=False)
     Phone = db.Column(db.String(20))
-    Address = db.Column(db.Text)
     Password_Hash = db.Column(db.String(255), nullable=False)
     Profile_Pic = db.Column(db.Text)
+    role = db.Column(sa.Enum('admin', 'user', name='role_types'), default='user')
 
-    def __init__(self, name, email, phone, address, password_hash, profile_pic):
+    def __init__(self, name, email, phone, password_hash, profile_pic, role='user'):
         self.Name = name
         self.Email = email
         self.Phone = phone
-        self.Address = address
         self.Password_Hash = password_hash
         self.Profile_Pic = profile_pic
+        self.role = role
+        
 
     @property
     def formatted_user_id(self):
@@ -38,8 +40,9 @@ class Event(db.Model):
     banner = db.Column(db.Text)
     logo = db.Column(db.Text)
     privacy_type = db.Column(db.String(255), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.User_id'), nullable=False)
 
-    def __init__(self, name, venue, method, link, time_start, time_end, description, org_name, org_mail, type, banner, logo, privacy_type):
+    def __init__(self, name, venue, method, link, time_start, time_end, description, org_name, org_mail, type, banner, logo, privacy_type, user_id):
         self.name = name
         self.venue = venue
         self.method = method
@@ -53,3 +56,4 @@ class Event(db.Model):
         self.banner = banner
         self.logo = logo
         self.privacy_type = privacy_type
+        self.user_id = user_id

@@ -11,7 +11,7 @@ load_dotenv()
 bp = Blueprint('main', __name__)
 
 @bp.route('/create_database', methods=['POST'])
-def create_database():
+def create_database():  
     data = request.get_json()
     db_name = data.get('db_name')
 
