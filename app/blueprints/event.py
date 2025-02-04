@@ -286,8 +286,8 @@ def fetch_banners():
         for event in events:
             data.append({
                 'banner': event.banner,
-                'registration_start_date': event.registration_start_date,
-                'registration_end_date': event.registration_end_date,
+                'registration_start_date': event.registration_start_date.strftime('%Y-%m-%d'),
+                'registration_end_date': event.registration_end_date.strftime('%Y-%m-%d'),
                 'registration_start_time': event.registration_start_time.strftime('%H:%M:%S'),
                 'registration_end_time': event.registration_end_time.strftime('%H:%M:%S')
             })

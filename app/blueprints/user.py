@@ -18,7 +18,7 @@ def token_required(f):
         token = None
         if 'Authorization' in request.headers:
             auth_header = request.headers['Authorization']
-            if auth_header.startswith('Bearer '):
+            if (auth_header.startswith('Bearer ')):
                 token = auth_header.split(' ')[1]
         if not token:
             return jsonify({'error': 'Token is missing!'}), 401
@@ -78,10 +78,9 @@ def login():
 
         # Verify the password
         if bcrypt.checkpw(password.encode('utf-8'), user.Password_Hash.encode('utf-8')):
-            # Generate JWT token
+            # Generate JWT token without expiry
             token = jwt.encode({
-                'user_id': user.User_id,
-                'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+                'user_id': user.User_id
             }, current_app.config['SECRET_KEY'], algorithm='HS256')
 
             return jsonify({'message': 'Login successful!', 'token': token}), 200
