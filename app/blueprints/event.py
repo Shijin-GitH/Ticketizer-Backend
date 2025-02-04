@@ -4,6 +4,7 @@ from app.models import Event, User
 from functools import wraps
 import jwt
 from flask import current_app
+from datetime import datetime
 
 bp = Blueprint('event', __name__)
 
@@ -33,8 +34,10 @@ def create_event(current_user):
     venue = data.get('venue')
     method = data.get('method')
     link = data.get('link')
-    time_start = data.get('time_start')
-    time_end = data.get('time_end')
+    start_date = data.get('start_date')
+    start_time = data.get('start_time')
+    end_date = data.get('end_date')
+    end_time = data.get('end_time')
     description = data.get('description')
     org_name = data.get('org_name')
     org_mail = data.get('org_mail')
@@ -43,7 +46,20 @@ def create_event(current_user):
     logo = data.get('logo')
     privacy_type = data.get('privacy_type')
 
-    if not name or not method or not time_start or not time_end or not org_name or not org_mail or not type or not privacy_type:
+    try:
+        registration_start_date = datetime.strptime(data.get('registrationStartDate'), '%Y-%m-%d').date()
+        registration_start_time = datetime.strptime(data.get('registrationStartTime'), '%H:%M:%S').time()
+        registration_end_date = datetime.strptime(data.get('registrationEndDate'), '%Y-%m-%d').date()
+        registration_end_time = datetime.strptime(data.get('registrationEndTime'), '%H:%M:%S').time()
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        start_time = datetime.strptime(start_time, '%H:%M:%S').time()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        end_time = datetime.strptime(end_time, '%H:%M:%S').time()
+        
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid date or time format'}), 400
+
+    if not name or not method or not start_date or not start_time or not end_date or not end_time or not org_name or not org_mail or not type or not privacy_type or not registration_start_date or not registration_start_time or not registration_end_date or not registration_end_time:
         return jsonify({'error': 'Missing required fields'}), 400
 
     try:
@@ -53,8 +69,10 @@ def create_event(current_user):
             venue=venue,
             method=method,
             link=link,
-            time_start=time_start,
-            time_end=time_end,
+            start_date=start_date,
+            start_time=start_time,
+            end_date=end_date,
+            end_time=end_time,
             description=description,
             org_name=org_name,
             org_mail=org_mail,
@@ -62,7 +80,11 @@ def create_event(current_user):
             banner=banner,
             logo=logo,
             privacy_type=privacy_type,
-            user_id=current_user.User_id
+            user_id=current_user.User_id,
+            registration_start_date=registration_start_date,
+            registration_start_time=registration_start_time,
+            registration_end_date=registration_end_date,
+            registration_end_time=registration_end_time
         )
 
         # Add the event to the session and commit
@@ -88,15 +110,21 @@ def get_events():
                 'venue': event.venue,
                 'method': event.method,
                 'link': event.link,
-                'time_start': event.time_start,
-                'time_end': event.time_end,
+                'start_date': event.start_date,
+                'start_time': event.start_time,
+                'end_date': event.end_date,
+                'end_time': event.end_time,
                 'description': event.description,
                 'org_name': event.org_name,
                 'org_mail': event.org_mail,
                 'type': event.type,
                 'banner': event.banner,
                 'logo': event.logo,
-                'privacy_type': event.privacy_type
+                'privacy_type': event.privacy_type,
+                'registration_start_date': event.registration_start_date,
+                'registration_start_time': event.registration_start_time,
+                'registration_end_date': event.registration_end_date,
+                'registration_end_time': event.registration_end_time
             })
 
         return jsonify(data), 200
@@ -119,15 +147,21 @@ def get_event(event_id):
             'venue': event.venue,
             'method': event.method,
             'link': event.link,
-            'time_start': event.time_start,
-            'time_end': event.time_end,
+            'start_date': event.start_date,
+            'start_time': event.start_time,
+            'end_date': event.end_date,
+            'end_time': event.end_time,
             'description': event.description,
             'org_name': event.org_name,
             'org_mail': event.org_mail,
             'type': event.type,
             'banner': event.banner,
             'logo': event.logo,
-            'privacy_type': event.privacy_type
+            'privacy_type': event.privacy_type,
+            'registration_start_date': event.registration_start_date,
+            'registration_start_time': event.registration_start_time,
+            'registration_end_date': event.registration_end_date,
+            'registration_end_time': event.registration_end_time
         }
 
         return jsonify(data), 200
@@ -142,8 +176,10 @@ def update_event(current_user, event_id):
     venue = data.get('venue')
     method = data.get('method')
     link = data.get('link')
-    time_start = data.get('time_start')
-    time_end = data.get('time_end')
+    start_date = data.get('start_date')
+    start_time = data.get('start_time')
+    end_date = data.get('end_date')
+    end_time = data.get('end_time')
     description = data.get('description')
     org_name = data.get('org_name')
     org_mail = data.get('org_mail')
@@ -151,6 +187,18 @@ def update_event(current_user, event_id):
     banner = data.get('banner')
     logo = data.get('logo')
     privacy_type = data.get('privacy_type')
+    registration_start_date = data.get('registrationStartDate')
+    registration_start_time = data.get('registrationStartTime')
+    registration_end_date = data.get('registrationEndDate')
+    registration_end_time = data.get('registrationEndTime')
+
+    try:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        start_time = datetime.strptime(start_time, '%H:%M:%S').time()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        end_time = datetime.strptime(end_time, '%H:%M:%S').time()
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid date or time format'}), 400
 
     try:
         # Query the event by id
@@ -168,10 +216,14 @@ def update_event(current_user, event_id):
                 event.method = method
             if link:
                 event.link = link
-            if time_start:
-                event.time_start = time_start
-            if time_end:
-                event.time_end = time_end
+            if start_date:
+                event.start_date = start_date
+            if start_time:
+                event.start_time = start_time
+            if end_date:
+                event.end_date = end_date
+            if end_time:
+                event.end_time = end_time
             if description:
                 event.description = description
             if org_name:
@@ -186,6 +238,14 @@ def update_event(current_user, event_id):
                 event.logo = logo
             if privacy_type:
                 event.privacy_type = privacy_type
+            if registration_start_date:
+                event.registration_start_date = registration_start_date
+            if registration_start_time:
+                event.registration_start_time = registration_start_time
+            if registration_end_date:
+                event.registration_end_date = registration_end_date
+            if registration_end_time:
+                event.registration_end_time = registration_end_time
 
             # Commit the changes
             db.session.commit()
@@ -212,5 +272,20 @@ def delete_event(current_user, event_id):
             return jsonify({'error': 'Unauthorized access'}), 403
 
         return jsonify({'message': 'Event deleted successfully!'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@bp.route('/fetch_banners', methods=['GET'])
+def fetch_banners():
+    try:
+        # Query all events
+        events = Event.query.all()
+
+        # Serialize the data
+        data = []
+        for event in events:
+            data.append(event.banner)
+
+        return jsonify(data), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500

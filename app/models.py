@@ -31,8 +31,10 @@ class Event(db.Model):
     venue = db.Column(db.String(255), nullable=False)
     method = db.Column(db.String(255), nullable=False)
     link = db.Column(db.String(255))
-    time_start = db.Column(db.DateTime, nullable=False)
-    time_end = db.Column(db.DateTime, nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    start_time = db.Column(db.Time, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
     description = db.Column(db.Text)
     org_name = db.Column(db.String(255), nullable=False)
     org_mail = db.Column(db.String(255), nullable=False)
@@ -41,14 +43,20 @@ class Event(db.Model):
     logo = db.Column(db.Text)
     privacy_type = db.Column(db.String(255), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.User_id'), nullable=False)
+    registration_start_date = db.Column(db.Date, nullable=False)
+    registration_start_time = db.Column(db.Time, nullable=False)
+    registration_end_date = db.Column(db.Date, nullable=False)
+    registration_end_time = db.Column(db.Time, nullable=False)
 
-    def __init__(self, name, venue, method, link, time_start, time_end, description, org_name, org_mail, type, banner, logo, privacy_type, user_id):
+    def __init__(self, name, venue, method, link, start_date, start_time, end_date, end_time, description, org_name, org_mail, type, banner, logo, privacy_type, user_id, registration_start_date, registration_start_time, registration_end_date, registration_end_time):
         self.name = name
         self.venue = venue
         self.method = method
         self.link = link
-        self.time_start = time_start
-        self.time_end = time_end
+        self.start_date = start_date
+        self.start_time = start_time
+        self.end_date = end_date
+        self.end_time = end_time
         self.description = description
         self.org_name = org_name
         self.org_mail = org_mail
@@ -57,3 +65,7 @@ class Event(db.Model):
         self.logo = logo
         self.privacy_type = privacy_type
         self.user_id = user_id
+        self.registration_start_date = registration_start_date
+        self.registration_start_time = registration_start_time
+        self.registration_end_date = registration_end_date
+        self.registration_end_time = registration_end_time
