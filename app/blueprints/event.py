@@ -110,10 +110,10 @@ def get_events():
                 'venue': event.venue,
                 'method': event.method,
                 'link': event.link,
-                'start_date': event.start_date,
-                'start_time': event.start_time,
-                'end_date': event.end_date,
-                'end_time': event.end_time,
+                'start_date': event.start_date.strftime('%Y-%m-%d'),
+                'start_time': event.start_time.strftime('%H:%M:%S'),
+                'end_date': event.end_date.strftime('%Y-%m-%d'),
+                'end_time': event.end_time.strftime('%H:%M:%S'),
                 'description': event.description,
                 'org_name': event.org_name,
                 'org_mail': event.org_mail,
@@ -121,10 +121,10 @@ def get_events():
                 'banner': event.banner,
                 'logo': event.logo,
                 'privacy_type': event.privacy_type,
-                'registration_start_date': event.registration_start_date,
-                'registration_start_time': event.registration_start_time,
-                'registration_end_date': event.registration_end_date,
-                'registration_end_time': event.registration_end_time
+                'registration_start_date': event.registration_start_date.strftime('%Y-%m-%d'),
+                'registration_start_time': event.registration_start_time.strftime('%H:%M:%S'),
+                'registration_end_date': event.registration_end_date.strftime('%Y-%m-%d'),
+                'registration_end_time': event.registration_end_time.strftime('%H:%M:%S')
             })
 
         return jsonify(data), 200
@@ -147,10 +147,10 @@ def get_event(event_id):
             'venue': event.venue,
             'method': event.method,
             'link': event.link,
-            'start_date': event.start_date,
-            'start_time': event.start_time,
-            'end_date': event.end_date,
-            'end_time': event.end_time,
+            'start_date': event.start_date.strftime('%Y-%m-%d'),
+            'start_time': event.start_time.strftime('%H:%M:%S'),
+            'end_date': event.end_date.strftime('%Y-%m-%d'),
+            'end_time': event.end_time.strftime('%H:%M:%S'),
             'description': event.description,
             'org_name': event.org_name,
             'org_mail': event.org_mail,
@@ -158,10 +158,10 @@ def get_event(event_id):
             'banner': event.banner,
             'logo': event.logo,
             'privacy_type': event.privacy_type,
-            'registration_start_date': event.registration_start_date,
-            'registration_start_time': event.registration_start_time,
-            'registration_end_date': event.registration_end_date,
-            'registration_end_time': event.registration_end_time
+            'registration_start_date': event.registration_start_date.strftime('%Y-%m-%d'),
+            'registration_start_time': event.registration_start_time.strftime('%H:%M:%S'),
+            'registration_end_date': event.registration_end_date.strftime('%Y-%m-%d'),
+            'registration_end_time': event.registration_end_time.strftime('%H:%M:%S')
         }
 
         return jsonify(data), 200
@@ -284,7 +284,13 @@ def fetch_banners():
         # Serialize the data
         data = []
         for event in events:
-            data.append(event.banner)
+            data.append({
+                'banner': event.banner,
+                'registration_start_date': event.registration_start_date,
+                'registration_end_date': event.registration_end_date,
+                'registration_start_time': event.registration_start_time,
+                'registration_end_time': event.registration_end_time
+            })
 
         return jsonify(data), 200
     except Exception as e:
