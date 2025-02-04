@@ -288,8 +288,8 @@ def fetch_banners():
                 'banner': event.banner,
                 'registration_start_date': event.registration_start_date,
                 'registration_end_date': event.registration_end_date,
-                'registration_start_time': event.registration_start_time,
-                'registration_end_time': event.registration_end_time
+                'registration_start_time': event.registration_start_time.strftime('%H:%M:%S'),
+                'registration_end_time': event.registration_end_time.strftime('%H:%M:%S')
             })
 
         return jsonify(data), 200
