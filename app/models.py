@@ -1,5 +1,8 @@
 from app import db
 import sqlalchemy as sa
+from sqlalchemy import event
+from sqlite3 import Connection as SQLite3Connection
+from sqlalchemy import text
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -23,6 +26,18 @@ class User(db.Model):
     @property
     def formatted_user_id(self):
         return f'TZR{self.User_id}'
+    
+class EventAdmin(db.Model):
+    __tablename__ = 'event_admins'
+    event_id = db.Column(db.Integer, db.ForeignKey('events.event_id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.User_id'), nullable=False)
+    __table_args__ = (
+        db.PrimaryKeyConstraint('event_id', 'user_id'),
+    )
+
+    def __init__(self, event_id, user_id):
+        self.event_id = event_id
+        self.user_id = user_id
 
 class Event(db.Model):
     __tablename__ = 'events'
@@ -68,4 +83,10 @@ class Event(db.Model):
         self.registration_start_date = registration_start_date
         self.registration_start_time = registration_start_time
         self.registration_end_date = registration_end_date
-        self.registration_end_time = registration_end_time
+        self.registration_end_time = registration_end_time        
+        
+# Trigger to add owner as event admin when event is created
+@event.listens_for(Event, 'after_insert')
+def receive_after_insert(mapper, connection, target):
+    stmt = text("INSERT INTO event_admins (event_id, user_id) VALUES (:event_id, :user_id)")
+    connection.execute(stmt, {'event_id': target.event_id, 'user_id': target.user_id})

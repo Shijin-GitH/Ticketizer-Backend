@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models import Event, User
+from app.models import Event, User, EventAdmin
 from functools import wraps
 import jwt
 from flask import current_app
@@ -8,6 +8,7 @@ from datetime import datetime
 
 bp = Blueprint('event', __name__)
 
+# Decorator to check if the token is provided
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -26,6 +27,7 @@ def token_required(f):
         return f(current_user, *args, **kwargs)
     return decorated
 
+# Create a new event
 @bp.route('/create_event', methods=['POST'])
 @token_required
 def create_event(current_user):
@@ -87,14 +89,15 @@ def create_event(current_user):
             registration_end_time=registration_end_time
         )
 
-        # Add the event to the session and commit
+        #Add event and event admin to the session and commit
         db.session.add(event)
         db.session.commit()
-
+        
         return jsonify({'message': 'Event created successfully!', 'event_id': event.event_id}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+# Get all events
 @bp.route('/get_events', methods=['GET'])
 def get_events():
     try:
@@ -131,6 +134,7 @@ def get_events():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+# Get an event by id
 @bp.route('/get_event/<int:event_id>', methods=['GET'])
 def get_event(event_id):
     try:
@@ -167,7 +171,8 @@ def get_event(event_id):
         return jsonify(data), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+
+# Update an event by id
 @bp.route('/update_event/<int:event_id>', methods=['PUT'])
 @token_required
 def update_event(current_user, event_id):
@@ -254,7 +259,8 @@ def update_event(current_user, event_id):
         return jsonify({'error': 'Unauthorized access'}), 403
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+ 
+# Delete an event by id   
 @bp.route('/delete_event/<int:event_id>', methods=['DELETE'])
 @token_required
 def delete_event(current_user, event_id):
@@ -275,6 +281,7 @@ def delete_event(current_user, event_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+# Fetch all banners    
 @bp.route('/fetch_banners', methods=['GET'])
 def fetch_banners():
     try:
@@ -293,5 +300,123 @@ def fetch_banners():
             })
 
         return jsonify(data), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+# Add an event admin   
+@bp.route('/add_event_admin', methods=['POST'])
+@token_required
+def add_event_admin(current_user):
+    data = request.get_json()
+    email = data.get('email')
+    event_id = data.get('event_id')
+    
+    try:
+        # Query the user by email
+        user = User.query.filter_by(Email=email).first()
+        
+        if user is None:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Query the event by id
+        event = Event.query.get(event_id)
+        
+        if event is None:
+            return jsonify({'error': 'Event not found'}), 404
+        
+        # Check if the current user is an event admin
+        current_user_admin = EventAdmin.query.filter_by(event_id=event_id, user_id=current_user.User_id).first()
+        
+        if current_user_admin is None:
+            return jsonify({'error': 'Unauthorized access'}), 403
+            
+        #Create a new event_admin instance
+        event_admin = EventAdmin(
+            event_id=event_id,
+            user_id=user.User_id
+        )
+        
+        db.session.add(event_admin)
+        db.session.commit()
+        
+        return jsonify({'message': 'Event admin added successfully!'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+            
+# Remove an event admin
+@bp.route('/remove_event_admin', methods=['DELETE'])
+@token_required
+def remove_event_admin(current_user):
+    data = request.get_json()
+    email = data.get('email')
+    event_id = data.get('event_id')
+    
+    try:
+        # Query the user by email
+        user = User.query.filter_by(Email=email).first()
+        
+        if user is None:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Query the event by id
+        event = Event.query.get(event_id)
+        
+        if event is None:
+            return jsonify({'error': 'Event not found'}), 404
+            
+        # Check if the current user is an event admin
+        event_admin_currentuser = EventAdmin.query.filter_by(event_id=event_id, user_id=current_user.User_id).first()
+        
+        if event_admin_currentuser is None:
+            return jsonify({'error': 'Unauthorized access'}), 403
+        
+        # Remove user as event admin
+        event_admin = EventAdmin.query.filter_by(event_id=event_id, user_id=user.User_id).first()
+        
+        if event_admin is None:
+            return jsonify({'error': 'User is not an event admin'}), 404
+        
+        db.session.delete(event_admin)
+        db.session.commit()
+        
+        return jsonify({'message': 'Event admin removed successfully!'}), 200
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+# Get all event admins
+@bp.route('/get_event_admins/', methods=['GET'])
+@token_required
+def get_event_admins(current_user):
+    data = request.get_json()
+    event_id = data.get('event_id')
+    try:
+        # Query the event by id
+        event = Event.query.get(event_id)
+        
+        if event is None:
+            return jsonify({'error': 'Event not found'}), 404
+        
+        #Check if currentuser is an event admin
+        event_admin_currentuser = EventAdmin.query.filter_by(event_id=event_id, user_id=current_user.User_id).first()
+        
+        if event_admin_currentuser is None:
+            return jsonify({'error': 'Unauthorized access'}), 403
+        
+        # Query all event admins
+        event_admins = EventAdmin.query.filter_by(event_id=event_id).all()
+        admin_count = EventAdmin.query.filter_by(event_id=event_id).count()
+        
+        # Serialize the data
+        data = []
+        for event_admin in event_admins:
+            user = User.query.get(event_admin.user_id)
+            data.append({
+                'name': user.Name,
+                'email': user.Email,
+            })
+            
+        return jsonify({'admins': data, 'admin_count': admin_count}), 200
+            
     except Exception as e:
         return jsonify({'error': str(e)}), 500
