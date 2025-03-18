@@ -420,3 +420,29 @@ def get_event_admins(current_user):
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+# Get all events by user id
+@bp.route('/get_events_by_user', methods=['GET'])
+@token_required
+
+def get_events_by_user(current_user):
+    try:
+        # Query all events by user id
+        events = Event.query.filter_by(user_id=current_user.User_id).all()
+        
+        # Serialize the data
+        data = []
+        for event in events:
+            data.append({
+                'event_id': event.event_id,
+                'name': event.name,
+                'venue': event.venue,
+                'method': event.method,
+                'banner': event.banner,
+                'start_date': event.start_date.strftime('%Y-%m-%d'),
+                'start_time': event.start_time.strftime('%H:%M:%S'),
+            })
+            
+        return jsonify(data), 200
+    except Exception as e:  
+        return jsonify({'error': str(e)}), 500

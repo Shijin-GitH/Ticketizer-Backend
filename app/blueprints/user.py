@@ -111,29 +111,79 @@ def delete_user(current_user, user_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
-# @bp.route('/forget-password', methods=['POST'])
-# def forget_password():
+#Get User Details
+@bp.route('/user_details', methods=['GET'])
+@token_required
+def user_details(current_user):
+    try:
+        return jsonify({'user_id': current_user.User_id, 'name': current_user.Name, 'email': current_user.Email, 'phone': current_user.Phone, 'profile_pic': current_user.Profile_Pic, 'role': current_user.role}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+#Update User Details
+@bp.route('/update_user', methods=['PUT'])
+@token_required
+
+def update_user(current_user):
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    phone = data.get('phone')
+    password = data.get('password')
+    profile_pic = data.get('profile_pic')
+    role = data.get('role')
+    
+    try:
+        if name:
+            current_user.Name = name
+        if email:
+            current_user.Email = email
+        if phone:
+            current_user.Phone = phone
+        if password:
+            current_user.Password_Hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        if profile_pic:
+            current_user.Profile_Pic = profile_pic
+        if role:
+            current_user.role = role
+        
+        db.session.commit()
+        
+        return jsonify({'message': 'User details updated successfully!'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+#Forgot Password
+# @bp.route('/forgot_password', methods=['POST'])
+# def forgot_password():
 #     data = request.get_json()
 #     email = data.get('email')
-
+    
 #     if not email:
 #         return jsonify({'error': 'Email is required'}), 400
-
+    
 #     try:
 #         # Query the user by email
-#         user = User.query.filter_by(email=email).first()
-
+#         user = User.query.filter_by(Email=email).first()
+        
 #         if user is None:
-#             return jsonify({'error': 'Email not found'}), 404
-
-#         # Generate a random code
-#         code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-
-#         # Send the code to the user's email
-#         msg = Message('Password Reset Code', sender='noreply@tickertizer.com', recipients=[email])
-#         msg.body = f'Your password reset code is {code}'
-#         Mail.send(msg)
-
-#         return jsonify({'message': 'Password reset code sent to your email'}), 200
+#             return jsonify({'error': 'User not found'}), 404
+        
+#        #Generate a one time password
+#         otp = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        
+#         #Update the password
+#         user.Password_Hash = bcrypt.hashpw(otp.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+#         db.session.commit()
+        
+#         #Send the OTP to the user's email
+#         mail = Mail(current_app)
+#         msg = Message('Password Reset OTP',
+#                       sender=current_app.config['MAIL_USERNAME'],
+#                       recipients=[email])
+#         msg.body = f'Your OTP is {otp}'
+#         mail.send(msg)
+        
+#         return jsonify({'message': 'OTP sent successfully!'}), 200
 #     except Exception as e:
 #         return jsonify({'error': str(e)}), 500
