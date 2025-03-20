@@ -426,23 +426,23 @@ def get_event_admins(current_user):
 @token_required
 
 def get_events_by_user(current_user):
-    try:
+    try:        
         # Query all events by user id
-        events = Event.query.filter_by(user_id=current_user.User_id).all()
+        events = EventAdmin.query.filter_by(user_id=current_user.User_id).all()
         
         # Serialize the data
         data = []
         for event in events:
+            event_data = Event.query.get(event.event_id)
             data.append({
-                'event_id': event.event_id,
-                'name': event.name,
-                'venue': event.venue,
-                'method': event.method,
-                'banner': event.banner,
-                'start_date': event.start_date.strftime('%Y-%m-%d'),
-                'start_time': event.start_time.strftime('%H:%M:%S'),
+                'event_id': event_data.event_id,
+                'name': event_data.name,
+                'venue': event_data.venue,
+                'start_date': event_data.start_date.strftime('%Y-%m-%d'),
+                'start_time': event_data.start_time.strftime('%H:%M:%S'),
+                'banner': event_data.banner
             })
             
         return jsonify(data), 200
-    except Exception as e:  
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
