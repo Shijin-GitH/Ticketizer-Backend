@@ -5,6 +5,8 @@ from functools import wraps
 import jwt
 from flask import current_app
 from datetime import datetime
+import cloudinary.uploader
+import uuid  # Add this import for generating unique tokens
 
 bp = Blueprint('event', __name__)
 
@@ -27,15 +29,26 @@ def token_required(f):
         return f(current_user, *args, **kwargs)
     return decorated
 
+def upload_banner_to_cloudinary(file):
+    try:
+        result = cloudinary.uploader.upload(file, folder="event_banners")
+        return result.get("secure_url")
+    except Exception as e:
+        raise ValueError(f"Failed to upload banner: {str(e)}")
+
 # Create a new event
 @bp.route('/create_event', methods=['POST'])
 @token_required
 def create_event(current_user):
     data = request.get_json()
+    banner_file = request.files.get('banner')
+    try:
+        banner_url = upload_banner_to_cloudinary(banner_file) if banner_file else None
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
     name = data.get('name')
-    venue = data.get('venue')
     method = data.get('method')
-    link = data.get('link')
     start_date = data.get('start_date')
     start_time = data.get('start_time')
     end_date = data.get('end_date')
@@ -44,33 +57,35 @@ def create_event(current_user):
     org_name = data.get('org_name')
     org_mail = data.get('org_mail')
     type = data.get('type')
-    banner = data.get('banner')
-    logo = data.get('logo')
     privacy_type = data.get('privacy_type')
+    mode = data.get('mode')
+    min_team = data.get('team_min')
+    max_team = data.get('team_max')
 
     try:
-        registration_start_date = datetime.strptime(data.get('registrationStartDate'), '%Y-%m-%d').date()
-        registration_start_time = datetime.strptime(data.get('registrationStartTime'), '%H:%M:%S').time()
-        registration_end_date = datetime.strptime(data.get('registrationEndDate'), '%Y-%m-%d').date()
-        registration_end_time = datetime.strptime(data.get('registrationEndTime'), '%H:%M:%S').time()
+        if not start_date or not start_time or not end_date or not end_time:
+            return jsonify({'error': 'Invalid date or time values'}), 400
+
         start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
         start_time = datetime.strptime(start_time, '%H:%M:%S').time()
         end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
         end_time = datetime.strptime(end_time, '%H:%M:%S').time()
-        
-    except (ValueError, TypeError):
-        return jsonify({'error': 'Invalid date or time format'}), 400
 
-    if not name or not method or not start_date or not start_time or not end_date or not end_time or not org_name or not org_mail or not type or not privacy_type or not registration_start_date or not registration_start_time or not registration_end_date or not registration_end_time:
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': f'Invalid date/time format: {str(e)}'}), 400
+
+
+    if not name or not method or not start_date or not start_time or not end_date or not end_time or not org_name or not org_mail or not type or not privacy_type:
         return jsonify({'error': 'Missing required fields'}), 400
 
     try:
+        # Generate a unique event token
+        event_token = str(uuid.uuid4())
+
         # Create a new event instance
         event = Event(
             name=name,
-            venue=venue,
             method=method,
-            link=link,
             start_date=start_date,
             start_time=start_time,
             end_date=end_date,
@@ -79,21 +94,20 @@ def create_event(current_user):
             org_name=org_name,
             org_mail=org_mail,
             type=type,
-            banner=banner,
-            logo=logo,
+            banner=banner_url,
             privacy_type=privacy_type,
             user_id=current_user.User_id,
-            registration_start_date=registration_start_date,
-            registration_start_time=registration_start_time,
-            registration_end_date=registration_end_date,
-            registration_end_time=registration_end_time
+            mode=mode,
+            min_team=min_team,
+            max_team=max_team,
+            token=event_token  # Save the token in the database
         )
 
         #Add event and event admin to the session and commit
         db.session.add(event)
         db.session.commit()
         
-        return jsonify({'message': 'Event created successfully!', 'event_id': event.event_id}), 201
+        return jsonify({'message': 'Event created successfully!', 'event_id': event.event_id, 'event_token': event_token}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
@@ -112,7 +126,6 @@ def get_events():
                 'name': event.name,
                 'venue': event.venue,
                 'method': event.method,
-                'link': event.link,
                 'start_date': event.start_date.strftime('%Y-%m-%d'),
                 'start_time': event.start_time.strftime('%H:%M:%S'),
                 'end_date': event.end_date.strftime('%Y-%m-%d'),
@@ -127,7 +140,10 @@ def get_events():
                 'registration_start_date': event.registration_start_date.strftime('%Y-%m-%d'),
                 'registration_start_time': event.registration_start_time.strftime('%H:%M:%S'),
                 'registration_end_date': event.registration_end_date.strftime('%Y-%m-%d'),
-                'registration_end_time': event.registration_end_time.strftime('%H:%M:%S')
+                'registration_end_time': event.registration_end_time.strftime('%H:%M:%S'),
+                'mode': event.mode,
+                'min_team': event.min_team,
+                'max_team': event.max_team
             })
 
         return jsonify(data), 200
@@ -150,7 +166,6 @@ def get_event(event_id):
             'name': event.name,
             'venue': event.venue,
             'method': event.method,
-            'link': event.link,
             'start_date': event.start_date.strftime('%Y-%m-%d'),
             'start_time': event.start_time.strftime('%H:%M:%S'),
             'end_date': event.end_date.strftime('%Y-%m-%d'),
@@ -160,27 +175,68 @@ def get_event(event_id):
             'org_mail': event.org_mail,
             'type': event.type,
             'banner': event.banner,
-            'logo': event.logo,
             'privacy_type': event.privacy_type,
-            'registration_start_date': event.registration_start_date.strftime('%Y-%m-%d'),
-            'registration_start_time': event.registration_start_time.strftime('%H:%M:%S'),
-            'registration_end_date': event.registration_end_date.strftime('%Y-%m-%d'),
-            'registration_end_time': event.registration_end_time.strftime('%H:%M:%S')
+            'registration_start_date': event.registration_start_date.strftime('%Y-%m-%d') if event.registration_start_date else None,
+            'registration_start_time': event.registration_start_time.strftime('%H:%M:%S') if event.registration_start_date else None,
+            'registration_end_date': event.registration_end_date.strftime('%Y-%m-%d') if event.registration_start_date else None,
+            'registration_end_time': event.registration_end_time.strftime('%H:%M:%S') if event.registration_start_date else None,
+            'mode': event.mode,
+            'min_team': event.min_team,
+            'max_team': event.max_team
         }
 
         return jsonify(data), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+# Get events by token
+@bp.route('/get_event_by_token/<string:token>/basic_details', methods=['GET'])
+def get_event_by_token(token):
+    try:
+        # Query the event by token
+        event = Event.query.filter_by(token=token).first()
+
+        if event is None:
+            return jsonify({'error': 'Event not found'}), 404
+
+        #Serialize the data
+        data = {
+            'name': event.name,
+            'venue': event.venue,
+            'method': event.method,
+            'start_date': event.start_date.strftime('%Y-%m-%d'),
+            'start_time': event.start_time.strftime('%H:%M:%S'),
+            'end_date': event.end_date.strftime('%Y-%m-%d'),
+            'end_time': event.end_time.strftime('%H:%M:%S'),
+            'description': event.description,
+            'registration_start_date': event.registration_start_date.strftime('%Y-%m-%d') if event.registration_start_date else None,
+            'registration_start_time': event.registration_start_time.strftime('%H:%M:%S') if event.registration_start_date else None,
+            'registration_end_date': event.registration_end_date.strftime('%Y-%m-%d') if event.registration_start_date else None,
+            'registration_end_time': event.registration_end_time.strftime('%H:%M:%S') if event.registration_start_date else None,
+            'banner': event.banner,
+            'privacy_type': event.privacy_type,
+        }
+        
+        return jsonify(data), 200
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+        
 
 # Update an event by id
 @bp.route('/update_event/<int:event_id>', methods=['PUT'])
 @token_required
 def update_event(current_user, event_id):
-    data = request.get_json()
+    data = request.form.to_dict()
+    banner_file = request.files.get('banner')
+    try:
+        banner_url = upload_banner_to_cloudinary(banner_file) if banner_file else None
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
     name = data.get('name')
     venue = data.get('venue')
     method = data.get('method')
-    link = data.get('link')
     start_date = data.get('start_date')
     start_time = data.get('start_time')
     end_date = data.get('end_date')
@@ -189,13 +245,15 @@ def update_event(current_user, event_id):
     org_name = data.get('org_name')
     org_mail = data.get('org_mail')
     type = data.get('type')
-    banner = data.get('banner')
     logo = data.get('logo')
     privacy_type = data.get('privacy_type')
     registration_start_date = data.get('registrationStartDate')
     registration_start_time = data.get('registrationStartTime')
     registration_end_date = data.get('registrationEndDate')
     registration_end_time = data.get('registrationEndTime')
+    mode = data.get('mode')
+    min_team = data.get('min_team')
+    max_team = data.get('max_team')
 
     try:
         start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
@@ -219,8 +277,6 @@ def update_event(current_user, event_id):
                 event.venue = venue
             if method:
                 event.method = method
-            if link:
-                event.link = link
             if start_date:
                 event.start_date = start_date
             if start_time:
@@ -237,8 +293,8 @@ def update_event(current_user, event_id):
                 event.org_mail = org_mail
             if type:
                 event.type = type
-            if banner:
-                event.banner = banner
+            if banner_url:
+                event.banner = banner_url
             if logo:
                 event.logo = logo
             if privacy_type:
@@ -251,6 +307,12 @@ def update_event(current_user, event_id):
                 event.registration_end_date = registration_end_date
             if registration_end_time:
                 event.registration_end_time = registration_end_time
+            if mode:
+                event.mode = mode
+            if min_team:
+                event.min_team = min_team
+            if max_team:
+                event.max_team = max_team
 
             # Commit the changes
             db.session.commit()
@@ -291,13 +353,15 @@ def fetch_banners():
         # Serialize the data
         data = []
         for event in events:
-            data.append({
-                'banner': event.banner,
-                'registration_start_date': event.registration_start_date.strftime('%Y-%m-%d'),
-                'registration_end_date': event.registration_end_date.strftime('%Y-%m-%d'),
-                'registration_start_time': event.registration_start_time.strftime('%H:%M:%S'),
-                'registration_end_time': event.registration_end_time.strftime('%H:%M:%S')
-            })
+            if event.status == "Published" and event.registration_start_date and event.registration_end_date and \
+               event.registration_start_time and event.registration_end_time:
+                data.append({
+                    'banner': event.banner,
+                    'registration_start_date': event.registration_start_date.strftime('%Y-%m-%d'),
+                    'registration_end_date': event.registration_end_date.strftime('%Y-%m-%d'),
+                    'registration_start_time': event.registration_start_time.strftime('%H:%M:%S'),
+                    'registration_end_time': event.registration_end_time.strftime('%H:%M:%S')
+                })
 
         return jsonify(data), 200
     except Exception as e:
@@ -440,7 +504,8 @@ def get_events_by_user(current_user):
                 'venue': event_data.venue,
                 'start_date': event_data.start_date.strftime('%Y-%m-%d'),
                 'start_time': event_data.start_time.strftime('%H:%M:%S'),
-                'banner': event_data.banner
+                'banner': event_data.banner,
+                'token': event_data.token
             })
             
         return jsonify(data), 200

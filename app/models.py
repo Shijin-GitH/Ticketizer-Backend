@@ -43,50 +43,132 @@ class Event(db.Model):
     __tablename__ = 'events'
     event_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), nullable=False)
-    venue = db.Column(db.String(255), nullable=False)
-    method = db.Column(db.String(255), nullable=False)
-    link = db.Column(db.String(255))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.User_id'), nullable=False)
+    description = db.Column(db.Text)
     start_date = db.Column(db.Date, nullable=False)
     start_time = db.Column(db.Time, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
-    description = db.Column(db.Text)
+    venue = db.Column(db.String(255))
+    privacy_type = db.Column(db.String(255), nullable=False)
+    method = db.Column(db.String(255), nullable=False)
+    banner = db.Column(db.String(255))  # Store Cloudinary URL
     org_name = db.Column(db.String(255), nullable=False)
     org_mail = db.Column(db.String(255), nullable=False)
     type = db.Column(db.String(255), nullable=False)
-    banner = db.Column(db.Text)
-    logo = db.Column(db.Text)
-    privacy_type = db.Column(db.String(255), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.User_id'), nullable=False)
-    registration_start_date = db.Column(db.Date, nullable=False)
-    registration_start_time = db.Column(db.Time, nullable=False)
-    registration_end_date = db.Column(db.Date, nullable=False)
-    registration_end_time = db.Column(db.Time, nullable=False)
+    mode = db.Column(db.String(255), nullable=False)  # Added mode column
+    min_team = db.Column(db.Integer)  # Added min_team column
+    max_team = db.Column(db.Integer)  # Added max_team column
+    registration_start_date = db.Column(db.Date)  # Added registration start date
+    registration_start_time = db.Column(db.Time)  # Added registration start time
+    registration_end_date = db.Column(db.Date)  # Added registration end date
+    registration_end_time = db.Column(db.Time)  # Added registration end time
+    status = db.Column(sa.Enum('Published', 'Unpublished', name='event_status'), default='Unpublished')
+    token = db.Column(db.String(255), unique=True, nullable=False)
 
-    def __init__(self, name, venue, method, link, start_date, start_time, end_date, end_time, description, org_name, org_mail, type, banner, logo, privacy_type, user_id, registration_start_date, registration_start_time, registration_end_date, registration_end_time):
+    def __init__(self, name, user_id, start_date, start_time, end_date, end_time, privacy_type, method, org_name, org_mail, type, mode, token, status="Unpublished", banner=None, min_team=None, description=None, max_team=None, registration_start_date=None, registration_start_time=None, registration_end_date=None, registration_end_time=None, venue=None):
         self.name = name
-        self.venue = venue
-        self.method = method
-        self.link = link
+        self.user_id = user_id
+        self.description = description
         self.start_date = start_date
         self.start_time = start_time
         self.end_date = end_date
         self.end_time = end_time
-        self.description = description
+        self.venue = venue
+        self.privacy_type = privacy_type
+        self.method = method
+        self.banner = banner  # Store Cloudinary URL here
         self.org_name = org_name
         self.org_mail = org_mail
         self.type = type
-        self.banner = banner
-        self.logo = logo
-        self.privacy_type = privacy_type
-        self.user_id = user_id
+        self.mode = mode
+        self.min_team = min_team
+        self.max_team = max_team
         self.registration_start_date = registration_start_date
         self.registration_start_time = registration_start_time
         self.registration_end_date = registration_end_date
-        self.registration_end_time = registration_end_time        
+        self.registration_end_time = registration_end_time
+        self.status = status
+        self.token = token
         
 # Trigger to add owner as event admin when event is created
 @event.listens_for(Event, 'after_insert')
 def receive_after_insert(mapper, connection, target):
     stmt = text("INSERT INTO event_admins (event_id, user_id) VALUES (:event_id, :user_id)")
     connection.execute(stmt, {'event_id': target.event_id, 'user_id': target.user_id})
+
+class Ticket(db.Model):
+    __tablename__ = 'tickets'
+    ticket_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.event_id'), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    price = db.Column(db.Float, nullable=False)
+
+    def __init__(self, event_id, name, price):
+        self.event_id = event_id
+        self.name = name
+        self.price = price
+
+
+class Transaction(db.Model):
+    __tablename__ = 'transactions'
+    transaction_id = db.Column(db.String(255), primary_key=True)  # Use a string for unique transaction IDs
+    ticket_id = db.Column(db.Integer, db.ForeignKey('tickets.ticket_id'), nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.event_id'), nullable=False)
+
+    def __init__(self, transaction_id, ticket_id, event_id):
+        self.transaction_id = transaction_id
+        self.ticket_id = ticket_id
+        self.event_id = event_id
+
+
+class Registration(db.Model):
+    __tablename__ = 'registrations'
+    registration_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('tickets.ticket_id'), nullable=True)  # Nullable for non-ticketed events
+    name = db.Column(db.String(255), nullable=False)
+    email = db.Column(db.String(255), nullable=False)
+    phone = db.Column(db.String(20), nullable=False)
+
+    def __init__(self, name, email, phone, ticket_id=None):
+        self.name = name
+        self.email = email
+        self.phone = phone
+        self.ticket_id = ticket_id
+
+
+class FormQuestion(db.Model):
+    __tablename__ = 'form_questions'
+    question_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.event_id'), nullable=False)
+    question_type = db.Column(sa.Enum('text', 'select', 'radio', 'checkbox', name='question_types'), nullable=False)
+    question = db.Column(db.Text, nullable=False)
+    options = db.Column(db.Text, nullable=True)  # Store options as a JSON string for select, radio, or checkbox types
+
+    def __init__(self, event_id, question_type, question, options=None):
+        self.event_id = event_id
+        self.question_type = question_type
+        self.question = question
+        self.options = options
+
+
+class FormAnswer(db.Model):
+    __tablename__ = 'form_answers'
+    answer_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    question_id = db.Column(db.Integer, db.ForeignKey('form_questions.question_id'), nullable=False)
+    answer = db.Column(db.Text, nullable=False)  # Store answers as JSON for multiple answers (checkbox)
+
+    def __init__(self, question_id, answer):
+        self.question_id = question_id
+        self.answer = answer
+
+
+class TermsAndConditions(db.Model):
+    __tablename__ = 'terms_and_conditions'
+    term_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.event_id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+
+    def __init__(self, event_id, content):
+        self.event_id = event_id
+        self.content = content
