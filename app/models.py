@@ -117,13 +117,21 @@ class Ticket(db.Model):
 class Transaction(db.Model):
     __tablename__ = 'transactions'
     transaction_id = db.Column(db.String(255), primary_key=True)  # Use a string for unique transaction IDs
+    order_id = db.Column(db.String(255), unique=True, nullable=True)  # Added order_id column
     ticket_id = db.Column(db.Integer, db.ForeignKey('tickets.ticket_id'), nullable=False)
     event_id = db.Column(db.Integer, db.ForeignKey('events.event_id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)  # Added amount column
+    status = db.Column(sa.Enum('Incomplete', 'Success', 'Failed', name='transaction_status'), default='Incomplete')  # Added status column
+    razorpay_payment_id = db.Column(db.String(255), nullable=True)  # Added Razorpay payment ID column
 
-    def __init__(self, transaction_id, ticket_id, event_id):
+    def __init__(self, transaction_id, ticket_id, event_id, amount, order_id=None, status="Incomplete", razorpay_payment_id=None):
         self.transaction_id = transaction_id
+        self.order_id = order_id
         self.ticket_id = ticket_id
         self.event_id = event_id
+        self.amount = amount
+        self.status = status
+        self.razorpay_payment_id = razorpay_payment_id
 
 
 class Registration(db.Model):

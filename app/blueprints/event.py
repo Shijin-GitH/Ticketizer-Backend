@@ -7,8 +7,18 @@ from flask import current_app
 from datetime import datetime
 import cloudinary.uploader
 import uuid  # Add this import for generating unique tokens
+from flask_cors import CORS
+
+# Configuration       
+cloudinary.config( 
+    cloud_name = "dfwhu7j76", 
+    api_key = "459229736585589", 
+    api_secret = "7CDb7KHeLB3X2O0BxoxZudvNCHA",
+    secure=True
+)
 
 bp = Blueprint('event', __name__)
+CORS(bp)
 
 # Decorator to check if the token is provided
 def token_required(f):
@@ -224,9 +234,9 @@ def get_event_by_token(token):
         
 
 # Update an event by id
-@bp.route('/update_event/<int:event_id>', methods=['PUT'])
+@bp.route('/update_event/<string:token>', methods=['PUT'])
 @token_required
-def update_event(current_user, event_id):
+def update_event(current_user, token):
     data = request.form.to_dict()
     banner_file = request.files.get('banner')
     try:
@@ -264,61 +274,66 @@ def update_event(current_user, event_id):
         return jsonify({'error': 'Invalid date or time format'}), 400
 
     try:
-        # Query the event by id
-        event = Event.query.get(event_id)
+        # Query the event by token
+        event = Event.query.filter_by(token=token).first()
 
         if event is None:
             return jsonify({'error': 'Event not found'}), 404
-        if event.user_id == current_user.User_id or current_user.role == 'admin':
-            # Update the event only with provided fields
-            if name:
-                event.name = name
-            if venue:
-                event.venue = venue
-            if method:
-                event.method = method
-            if start_date:
-                event.start_date = start_date
-            if start_time:
-                event.start_time = start_time
-            if end_date:
-                event.end_date = end_date
-            if end_time:
-                event.end_time = end_time
-            if description:
-                event.description = description
-            if org_name:
-                event.org_name = org_name
-            if org_mail:
-                event.org_mail = org_mail
-            if type:
-                event.type = type
-            if banner_url:
-                event.banner = banner_url
-            if logo:
-                event.logo = logo
-            if privacy_type:
-                event.privacy_type = privacy_type
-            if registration_start_date:
-                event.registration_start_date = registration_start_date
-            if registration_start_time:
-                event.registration_start_time = registration_start_time
-            if registration_end_date:
-                event.registration_end_date = registration_end_date
-            if registration_end_time:
-                event.registration_end_time = registration_end_time
-            if mode:
-                event.mode = mode
-            if min_team:
-                event.min_team = min_team
-            if max_team:
-                event.max_team = max_team
 
-            # Commit the changes
-            db.session.commit()
+        # Check if the current user is an event admin
+        event_admin = EventAdmin.query.filter_by(event_id=event.event_id, user_id=current_user.User_id).first()
+        if event_admin is None:
+            return jsonify({'error': 'Unauthorized access'}), 403
 
-            return jsonify({'message': 'Event updated successfully!'}), 200
-        return jsonify({'error': 'Unauthorized access'}), 403
+        # Update event fields
+        if name:
+            event.name = name
+        if venue:
+            event.venue = venue
+        if method:
+            event.method = method
+        if start_date:
+            event.start_date = start_date
+        if start_time:
+            event.start_time = start_time
+        if end_date:
+            event.end_date = end_date
+        if end_time:
+            event.end_time = end_time
+        if description:
+            event.description = description
+        if org_name:
+            event.org_name = org_name
+        if org_mail:
+            event.org_mail = org_mail
+        if type:
+            event.type = type
+        if banner_url:
+            event.banner = banner_url
+        if logo:
+            event.logo = logo
+        if privacy_type:
+            event.privacy_type = privacy_type
+        if registration_start_date:
+            event.registration_start_date = datetime.strptime(registration_start_date, '%Y-%m-%d').date()
+        if registration_start_time:
+            event.registration_start_time = datetime.strptime(registration_start_time, '%H:%M:%S').time()
+        if registration_end_date:
+            event.registration_end_date = datetime.strptime(registration_end_date, '%Y-%m-%d').date()
+        if registration_end_time:
+            event.registration_end_time = datetime.strptime(registration_end_time, '%H:%M:%S').time()
+        if mode:
+            event.mode = mode
+        if min_team:
+            event.min_team = min_team
+        if max_team:
+            event.max_team = max_team
+
+        # Commit the changes
+        db.session.commit()
+
+        return jsonify({'message': 'Event updated successfully!'}), 200
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
  
@@ -511,3 +526,36 @@ def get_events_by_user(current_user):
         return jsonify(data), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+@bp.route('/upload_event_banner', methods=['POST'])
+def upload_event_banner():
+    if 'photo' not in request.files:
+        return jsonify({"error": "No photo file provided"}), 400
+
+    photo = request.files['photo']
+    event_token = request.form.get('token')
+
+    if not event_token:
+        return jsonify({"error": "Event token is missing"}), 400
+
+    try:
+        # Upload image to Cloudinary
+        upload_result = cloudinary.uploader.upload(photo)
+        banner_url = upload_result.get('secure_url')
+        print("Banner URL:", banner_url)
+
+        if not banner_url:
+            return jsonify({"error": "Image upload failed"}), 500
+
+        # Update the event with the new banner URL
+        event = Event.query.filter_by(token=event_token).first()
+        if not event:
+            return jsonify({"error": "Event not found"}), 404
+        
+        event.banner = banner_url   
+        db.session.commit()  # Commit the changes to the database
+
+        return jsonify({"message": "Banner uploaded successfully", "banner_url": banner_url}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
