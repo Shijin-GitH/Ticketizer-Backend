@@ -103,11 +103,15 @@ class Ticket(db.Model):
     event_id = db.Column(db.Integer, db.ForeignKey('events.event_id'), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     price = db.Column(db.Float, nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    num_sold = db.Column(db.Integer, default=0)  # Track number of tickets sold
 
-    def __init__(self, event_id, name, price):
+    def __init__(self, event_id, name, price, quantity, num_sold=0):
         self.event_id = event_id
         self.name = name
         self.price = price
+        self.quantity = quantity
+        self.num_sold = num_sold
 
 
 class Transaction(db.Model):
@@ -135,6 +139,17 @@ class Registration(db.Model):
         self.email = email
         self.phone = phone
         self.ticket_id = ticket_id
+        
+#Function to decrement ticket quantity after registration
+@event.listens_for(Registration, 'after_insert')
+def decrement_ticket_quantity(mapper, connection, target):
+    if target.ticket_id:
+        ticket = Ticket.query.get(target.ticket_id)
+        if ticket and ticket.quantity - ticket.num_sold > 0:
+            ticket.num_sold += 1
+            db.session.commit()
+        else:
+            raise Exception("No tickets available for this event.")
 
 
 class FormQuestion(db.Model):

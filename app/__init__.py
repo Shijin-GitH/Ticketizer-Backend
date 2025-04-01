@@ -17,9 +17,16 @@ def create_app():
         from app.routes import bp
         from app.blueprints.user import bp as user_bp
         from app.blueprints.event import bp as event_bp
+        from app.blueprints.ticket import bp as ticket_bp
+        from app.blueprints.forms import bp as forms_bp
+        from app.blueprints.payment import bp as payment_bp
+        
         app.register_blueprint(bp)
         app.register_blueprint(user_bp)
         app.register_blueprint(event_bp)
+        app.register_blueprint(ticket_bp)
+        app.register_blueprint(forms_bp)
+        app.register_blueprint(payment_bp)
         db.create_all()
 
     return app
