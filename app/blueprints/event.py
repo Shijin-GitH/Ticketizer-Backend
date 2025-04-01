@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models import Event, User, EventAdmin
+from app.models import Event, User, EventAdmin, Ticket  # Add this import for the Ticket model
 from functools import wraps
 import jwt
 from flask import current_app
@@ -237,13 +237,7 @@ def get_event_by_token(token):
 @bp.route('/update_event/<string:token>', methods=['PUT'])
 @token_required
 def update_event(current_user, token):
-    data = request.form.to_dict()
-    banner_file = request.files.get('banner')
-    try:
-        banner_url = upload_banner_to_cloudinary(banner_file) if banner_file else None
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-
+    data = request.get_json()
     name = data.get('name')
     venue = data.get('venue')
     method = data.get('method')
@@ -252,17 +246,14 @@ def update_event(current_user, token):
     end_date = data.get('end_date')
     end_time = data.get('end_time')
     description = data.get('description')
-    org_name = data.get('org_name')
-    org_mail = data.get('org_mail')
     type = data.get('type')
-    logo = data.get('logo')
     privacy_type = data.get('privacy_type')
     registration_start_date = data.get('registrationStartDate')
     registration_start_time = data.get('registrationStartTime')
     registration_end_date = data.get('registrationEndDate')
     registration_end_time = data.get('registrationEndTime')
     mode = data.get('mode')
-    min_team = data.get('min_team')
+    min_team = data.get('min_team') 
     max_team = data.get('max_team')
 
     try:
@@ -270,6 +261,11 @@ def update_event(current_user, token):
         start_time = datetime.strptime(start_time, '%H:%M:%S').time()
         end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
         end_time = datetime.strptime(end_time, '%H:%M:%S').time()
+        registration_start_date = datetime.strptime(registration_start_date, '%Y-%m-%d').date() if registration_start_date else None
+        registration_start_time = datetime.strptime(registration_start_time, '%H:%M:%S').time() if registration_start_time else None
+        registration_end_date = datetime.strptime(registration_end_date, '%Y-%m-%d').date() if registration_end_date else None
+        registration_end_time = datetime.strptime(registration_end_time, '%H:%M:%S').time() if registration_end_time else None
+        
     except (ValueError, TypeError):
         return jsonify({'error': 'Invalid date or time format'}), 400
 
@@ -302,26 +298,18 @@ def update_event(current_user, token):
             event.end_time = end_time
         if description:
             event.description = description
-        if org_name:
-            event.org_name = org_name
-        if org_mail:
-            event.org_mail = org_mail
         if type:
             event.type = type
-        if banner_url:
-            event.banner = banner_url
-        if logo:
-            event.logo = logo
         if privacy_type:
             event.privacy_type = privacy_type
         if registration_start_date:
-            event.registration_start_date = datetime.strptime(registration_start_date, '%Y-%m-%d').date()
+            event.registration_start_date = registration_start_date
         if registration_start_time:
-            event.registration_start_time = datetime.strptime(registration_start_time, '%H:%M:%S').time()
+            event.registration_start_time = registration_start_time
         if registration_end_date:
-            event.registration_end_date = datetime.strptime(registration_end_date, '%Y-%m-%d').date()
+            event.registration_end_date = registration_end_date
         if registration_end_time:
-            event.registration_end_time = datetime.strptime(registration_end_time, '%H:%M:%S').time()
+            event.registration_end_time = registration_end_time
         if mode:
             event.mode = mode
         if min_team:
@@ -368,14 +356,14 @@ def fetch_banners():
         # Serialize the data
         data = []
         for event in events:
-            if event.status == "Published" and event.registration_start_date and event.registration_end_date and \
-               event.registration_start_time and event.registration_end_time:
+            if event.status == "Published":
                 data.append({
                     'banner': event.banner,
-                    'registration_start_date': event.registration_start_date.strftime('%Y-%m-%d'),
-                    'registration_end_date': event.registration_end_date.strftime('%Y-%m-%d'),
-                    'registration_start_time': event.registration_start_time.strftime('%H:%M:%S'),
-                    'registration_end_time': event.registration_end_time.strftime('%H:%M:%S')
+                    'registration_start_date': event.registration_start_date.strftime('%Y-%m-%d') if event.registration_start_date else None,
+                    'registration_end_date': event.registration_end_date.strftime('%Y-%m-%d') if event.registration_end_date else None,
+                    'registration_start_time': event.registration_start_time.strftime('%H:%M:%S') if event.registration_start_time else None,
+                    'registration_end_time': event.registration_end_time.strftime('%H:%M:%S') if event.registration_end_time else None,
+                    'token': event.token,
                 })
 
         return jsonify(data), 200
@@ -558,4 +546,112 @@ def upload_event_banner():
         return jsonify({"message": "Banner uploaded successfully", "banner_url": banner_url}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+#Route to update the status of the event to published
+@bp.route('/update_event_status/<string:token>', methods=['PUT'])
+@token_required
+def update_event_status(current_user, token):
+    try:
+        # Query the event by token
+        event = Event.query.filter_by(token=token).first()
+
+        if event is None:
+            return jsonify({'error': 'Event not found'}), 404
+
+        # Check if the current user is an event admin
+        event_admin = EventAdmin.query.filter_by(event_id=event.event_id, user_id=current_user.User_id).first()
+        if event_admin is None:
+            return jsonify({'error': 'Unauthorized access'}), 403
+
+        # Update the status of the event to published
+        event.status = "Published"
+        db.session.commit()
+
+        return jsonify({'message': 'Event status updated to published successfully!'}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+#Route to update the status of the event to unpublished
+@bp.route('/update_event_status_unpublished/<string:token>', methods=['PUT'])
+@token_required
+def update_event_status_unpublished(current_user, token):
+    try:
+        # Query the event by token
+        event = Event.query.filter_by(token=token).first()
+
+        if event is None:
+            return jsonify({'error': 'Event not found'}), 404
+
+        # Check if the current user is an event admin
+        event_admin = EventAdmin.query.filter_by(event_id=event.event_id, user_id=current_user.User_id).first()
+        if event_admin is None:
+            return jsonify({'error': 'Unauthorized access'}), 403
+
+        # Update the status of the event to unpublished
+        event.status = "Unpublished"
+        db.session.commit()
+
+        return jsonify({'message': 'Event status updated to unpublished successfully!'}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+#Route to fetch status of an event
+@bp.route('/fetch_event_status/<string:token>', methods=['GET'])
+@token_required
+def fetch_event_status(current_user, token):
+    try:
+        # Query the event by token
+        event = Event.query.filter_by(token=token).first()
+
+        if event is None:
+            return jsonify({'error': 'Event not found'}), 404
+
+        # Check if the current user is an event admin
+        event_admin = EventAdmin.query.filter_by(event_id=event.event_id, user_id=current_user.User_id).first()
+        if event_admin is None:
+            return jsonify({'error': 'Unauthorized access'}), 403
+
+        # Fetch the status of the event
+        status = event.status,
+        name = event.name
+
+        return jsonify({'status': status, 'name': name}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/get_event_details/<string:token>', methods=['GET'])
+def get_event_details(token):
+    try:
+        # Query the event by token
+        event = Event.query.filter_by(token=token).first()
+
+        if event is None:
+            return jsonify({'error': 'Event not found'}), 404
+
+        # Query tickets associated with the event
+        tickets = Ticket.query.filter_by(event_id=event.event_id).all()
+        ticket_data = [{'ticket_id': ticket.ticket_id, 'price': ticket.price, 'name': ticket.name} for ticket in tickets]
+
+        # Serialize the required data
+        data = {
+            'name': event.name,
+            'organiser_name': event.org_name,
+            'start_date': event.start_date.strftime('%Y-%m-%d'),
+            'start_time': event.start_time.strftime('%H:%M:%S'),
+            'end_date': event.end_date.strftime('%Y-%m-%d'),
+            'end_time': event.end_time.strftime('%H:%M:%S'),
+            'venue': event.venue,
+            'tickets': ticket_data,
+            'description': event.description,
+            'banner': event.banner,
+        }
+
+        return jsonify(data), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
